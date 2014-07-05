@@ -1,0 +1,369 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+    <meta name="description" content="NoNameGame page"/>
+
+    <title>NoNameGame- Tizen Web Application</title>
+
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/pause.css">
+
+    <script src="js/main.js"></script>
+    <script src="js/phaser.js"></script>
+</head>
+
+<body> 
+	<div id="gameOverlayContainer" style="visibility:hidden">
+	<div id="pauseHUD" class="absoluteCenter" style="visibility:hidden">
+		PAUSE MENU </br>
+		<button onclick="unpause();">RESUME</button>
+	</div>
+
+	<div id="gameoverHUD" class="absoluteCenter" style="visibility:hidden">
+		GAME OVER </br>
+		<button onclick="restart();">OK</button>
+	</div>
+	
+</div>
+</body>
+<!--Game body -->
+<script type="text/javascript">
+//window.onload = function() {
+	initTizenBasic(); //load tizen main
+
+	var screenWidth = 640 //640  800
+		,screenHeight = 360; //360 480
+	var game = new Phaser.Game(screenWidth, screenHeight, Phaser.AUTO, '', { preload: preload, create: create, update: update ,render: render});   
+	
+	//Game Variables
+	var tileBG;
+
+	var speed = 200;
+
+	var bot;	
+	var linegroup;
+	var linelevel=0;
+	var maxlinelevel=3;
+
+	var linetype=1; //0-up 1-line 2-down
+	var prevlinetype=1;
+
+	var btnUp, btnLine, btnDown, btnPause;
+
+	var powergroup;
+
+	var enemy
+		,rangePart = 101
+		,rangeEnemyBot
+		,rangeMax = rangePart*3;
+
+	var comboCount = 0;
+	var comboBigCount = 0;
+
+	var comboValue = 5
+		,comboBigValue = 20;
+
+    function preload(){        
+    	game.load.atlasJSONHash('bots', 'assets/textures/spritesheet.png', 'assets/textures/sprites.json'); //atlasJSONHash
+    	game.load.image('line', 'assets/line.png');
+    	game.load.image('lineup', 'assets/up.png');
+    	game.load.image('linedown', 'assets/down.png');
+    	game.load.image('background','assets/background.png');
+    	//buttons
+    	game.load.image('btnup','assets/btnup.png');
+    	game.load.image('btnline','assets/btnline.png');
+    	game.load.image('btndown','assets/btndown.png');
+    	game.load.image('btnpause','assets/btnPause.png');
+    	//power
+    	game.load.image('power','assets/power.png');
+    	//enemyy
+    	game.load.image('enemy','assets/enemy.png');
+    }
+
+    function create(){
+    	game.physics.startSystem(Phaser.Physics.ARCADE);
+    	//game.stage.backgroundColor = '#2d2d2d';
+    	//Create BG
+    	tileBG = game.add.tileSprite(0, 0, screenWidth, screenHeight, 'background');
+    	//Create buttons
+    	btnUp = game.add.sprite(screenWidth-105, screenHeight-305, 'btnup');
+    	btnLine = game.add.sprite(screenWidth-105, screenHeight-205, 'btnline');
+    	btnDown = game.add.sprite(screenWidth-105, screenHeight-105, 'btndown');
+    	btnPause = game.add.sprite(10, 10, 'btnpause');
+
+    	btnUp.inputEnabled = true;
+    	btnLine.inputEnabled = true;
+    	btnDown.inputEnabled = true;
+    	btnPause.inputEnabled = true;
+
+    	btnUp.events.onInputDown.add(btnUpListener, this);
+    	btnLine.events.onInputDown.add(btnLineListener, this);
+    	btnDown.events.onInputDown.add(btnDownListener, this);
+    	btnPause.events.onInputDown.add(btnPauseListener, this);
+
+    	//  This sprite is using a texture atlas for all of its animation data
+	    bot = game.add.sprite(200, 270, 'bots');	    
+	    bot.animations.add('run');
+	    bot.animations.play('run',15, true);
+	    game.physics.enable(bot, Phaser.Physics.ARCADE);
+        bot.body.velocity.x = 0;
+        bot.body.immovable = true;
+       // bot.anchor.setTo(0.5, 0.5);
+
+        //create enemy
+        enemy = game.add.sprite(99, 30, 'enemy');	    
+	    game.physics.enable(enemy, Phaser.Physics.ARCADE);	    
+        enemy.body.velocity.x = -speed/2;
+        enemy.body.immovable = true;
+       // enemy.anchor.setTo(0.5, 0.5);
+	    // Create lines
+	    linegroup = game.add.group();
+	    for (var i = 0; i < 8; i++)
+   		{
+   			var sprite = game.add.sprite(i*100, 250, 'line');
+   			game.physics.enable(sprite, Phaser.Physics.ARCADE);
+   			sprite.typeline=1;
+   			sprite.body.velocity.x = -speed;  
+        	linegroup.add(sprite);   	
+   		} 
+
+   		//create start power
+   		powergroup = game.add.group();
+   		powergroup.enableBody = true;
+    	powergroup.physicsBodyType = Phaser.Physics.ARCADE;
+
+   		for (var i = 1; i < 5; i++)
+   		{   			
+        	var s = powergroup.create(625+i*200,275,'power');	
+        	s.body.velocity.x = -speed;
+        	s.body.immovable = true;
+   		} 
+
+   		rangeEnemyBot=rangeMax;
+    }
+
+   
+	function render() {
+	   // game.debug.body(bot);
+	   // game.debug.body(powergroup);
+	}
+
+
+    function update(){  	
+    	gameOverCheck();
+
+    	tileBG.tilePosition.x = tileBG.tilePosition.x - 1;
+
+		for(var i=0;i<linegroup.countLiving();i++)
+		{
+			var item = linegroup.getAt(i);
+			if(item.x<-100){
+	    		linegroup.remove(item,true);
+	    		//TODO INSERT AI SCRIPT HERE
+	    		break;
+    		}
+
+    		//Check collisions
+    		if(bot.x+35>item.x && bot.x+35<item.x+100){
+    			//console.log("SDFDSFDF");
+    				switch(item.typeline){
+    					case 0:
+    							bot.body.velocity.y = -speed;
+    							break;
+    					case 1:
+    							bot.body.velocity.y=0;
+    							if (bot.y !=item.y+20){bot.y = item.y+20};
+    							break;
+    					case 2:
+    							bot.body.velocity.y = speed;
+    							break;
+    					default:
+    							//console.log("DEEEEEEEEEEEF");
+    							break;
+    				}
+    		}
+
+		}		
+
+		powerControl();
+		//check collisions 
+    	game.physics.arcade.overlap(bot, powergroup, botOverlapPower, null, this);  
+
+		//enemy control
+		game.physics.arcade.overlap(enemy, powergroup, enemyOverlapPower, null, this);  
+
+		if(distanceBetween(enemy,bot) < rangeEnemyBot){
+			enemy.body.velocity.x = -speed/4;
+		}
+		if(distanceBetween(enemy,bot) > rangeEnemyBot){
+			enemy.body.velocity.x = speed/4;
+		}
+		if(Math.abs(distanceBetween(enemy,bot)-rangeEnemyBot) < 1){
+			enemy.x=bot.x-rangeEnemyBot;
+			enemy.body.velocity.x = 0;
+		}
+
+		if (comboCount == comboValue){
+			rangeEnemyBot = rangeEnemyBot + rangePart;
+			comboCount = 0;
+		}
+
+		if (comboBigCount == comboBigValue){
+			rangeEnemyBot = rangeEnemyBot + rangePart;
+			comboBigCount = 0;
+		}
+		//console.log(enemy.x+" Range:"+rangeEnemyBot+" velocity:"+enemy.body.velocity);
+		console.log(Math.abs(distanceBetween(enemy,bot)-rangeEnemyBot));
+    }
+
+    function getRandomArbitary(min, max)
+	{	
+ 		return Math.floor(Math.random() * (max - min + 1)) + min;
+	
+	}
+
+	function btnUpListener(){		
+		if(linelevel != 2){
+			prevlinetype=linetype;
+			linetype = 0;
+			if(prevlinetype==0){
+				var sprite = game.add.sprite(linegroup.getTop().x+100, linegroup.getTop().y-100, 'lineup');				 
+				sprite.typeline=0;
+			}else{
+				var sprite = game.add.sprite(linegroup.getTop().x+100, linegroup.getTop().y, 'lineup');
+				sprite.typeline=0;										
+			}
+			game.physics.enable(sprite, Phaser.Physics.ARCADE);   				
+   			sprite.body.velocity.x = -speed; 
+   			linegroup.add(sprite);	
+			linelevel++;
+		}
+	}
+
+	function btnLineListener(){		
+			prevlinetype=linetype;
+			linetype = 1;
+			if(prevlinetype==0){
+				var sprite = game.add.sprite(linegroup.getTop().x+100, linegroup.getTop().y-100, 'line');
+				sprite.typeline=1;
+			}else{
+				var sprite = game.add.sprite(linegroup.getTop().x+100, linegroup.getTop().y, 'line');
+				sprite.typeline=1;
+			}
+			game.physics.enable(sprite, Phaser.Physics.ARCADE);   				
+   			sprite.body.velocity.x = -speed; 
+   			linegroup.add(sprite);
+	}
+
+	function btnDownListener(){
+		if(linelevel != 0){
+			prevlinetype=linetype;
+			linetype = 2;
+			if(prevlinetype!=0){
+				var sprite = game.add.sprite(linegroup.getTop().x+100, linegroup.getTop().y+100, 'linedown');
+				sprite.typeline=2;
+			}else{
+				var sprite = game.add.sprite(linegroup.getTop().x+100, linegroup.getTop().y, 'linedown');
+				sprite.typeline=2;
+			}
+			game.physics.enable(sprite, Phaser.Physics.ARCADE);   				
+   			sprite.body.velocity.x = -speed; 
+   			linegroup.add(sprite);
+			linelevel--;
+		}
+	}
+
+	function btnPauseListener(){
+		if(!game.paused){
+			 pause();
+		}
+	}
+
+ 
+    function powerControl(){
+    	if(powergroup.countLiving()<10){
+    		generatePower();
+    	} 
+
+    	for(var i=0;i<powergroup.countLiving();i++)
+		{
+			var item = powergroup.getAt(i);	
+    		//remove from screen
+			if(item.x<-100){
+	    		//powergroup.remove(item,true);
+	    	}
+	    }
+    }
+
+	function generatePower(){
+		var rndPowerLevel = getRandomArbitary(0, 2);
+        var s = powergroup.create(powergroup.getTop().x+200, 275-100*rndPowerLevel,'power');	
+        s.body.immovable = true;
+        s.body.velocity.x = -speed;
+	}
+
+	function botOverlapPower(_bot,_power){
+		powergroup.remove(_power,true);
+		//_power.kill();
+		console.log("OVERLAAAp!");
+		if(comboCount<comboValue && distanceBetween(enemy,bot)==rangePart){
+			comboCount = comboCount+1;
+		}
+		if(comboBigCount<comboBigValue && distanceBetween(enemy,bot)==rangePart*2){
+			comboBigCount = comboBigCount+1;
+		}
+	}
+
+	function enemyOverlapPower(_enemy,_power){
+		console.log("enemy overlap power");
+		if(rangeEnemyBot > 0){
+			rangeEnemyBot=rangeEnemyBot-rangePart;
+		}
+		powergroup.remove(_power,true);
+		if(comboCount>0){
+			comboCount = comboCount-1;
+		}
+		if(comboBigCount>0){
+			comboBigCount = comboBigCount - 1;
+		}
+	}
+
+	function distanceBetween(obj1,obj2){
+		return Math.abs(obj1.x-obj2.x);
+		//return obj1.x-obj2.x;
+	}
+
+	function gameOverCheck(){
+		var gg=false;
+		if(bot.x+40>linegroup.getTop().x+100){gg=true};//upal nahuy!
+		if(enemy.overlap(bot)){gg=true};//dognal nahuy!
+		if(gg==true){
+			//alert("game over !");
+			//location.reload();
+			game.paused = true;
+			document.getElementById("gameoverHUD").style.visibility="visible";	
+			document.getElementById("gameOverlayContainer").style.visibility="visible";	
+		} 
+	}
+
+	function pause(){
+		document.getElementById("pauseHUD").style.visibility="visible";	
+		document.getElementById("gameOverlayContainer").style.visibility="visible";		
+		game.paused = true;
+	}
+
+	function unpause(){
+		document.getElementById("pauseHUD").style.visibility="hidden";
+		document.getElementById("gameOverlayContainer").style.visibility="hidden";				
+		game.paused = false;
+	}
+
+	function restart(){
+		location.reload();
+	}
+//}
+</script>
+
+</html>

@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<widget xmlns="http://www.w3.org/ns/widgets" xmlns:tizen="http://tizen.org/ns/widgets" id="http://yourdomain/nngame" version="1.0.0" viewmodes="fullscreen">
+    <tizen:application id="SCUEpfVnsq.nngame" package="SCUEpfVnsq" required_version="2.2"/>
+    <content src="game.html"/>
+    <icon src="icon.png"/>
+    <name>nngame</name>
+<tizen:setting screen-orientation="landscape" context-menu="enable" background-support="disable" encryption="disable" install-location="auto" hwkey-event="enable"/>
+
+</widget>
