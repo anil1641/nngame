@@ -65,9 +65,16 @@
 	var comboValue = 5
 		,comboBigValue = 20;
 
+	var ground1,ground2;
+
+	var blockgroup;
+
+	var groundObjGroup;
+
     function preload(){        
     	game.load.atlasJSONHash('bots', 'assets/textures/spritesheet.png', 'assets/textures/sprites.json'); //atlasJSONHash
     	game.load.image('line', 'assets/line.png');
+    	game.load.image('line_on_ground', 'assets/line_on_ground.png');
     	game.load.image('lineup', 'assets/up.png');
     	game.load.image('linedown', 'assets/down.png');
     	game.load.image('background','assets/background.png');
@@ -80,6 +87,15 @@
     	game.load.image('power','assets/power.png');
     	//enemyy
     	game.load.image('enemy','assets/enemy.png');
+
+    	//ground
+    	game.load.image('ground','assets/ground.png');
+
+    	//blocks
+    	game.load.image('block','assets/block.png');
+    	game.load.image('block_up','assets/block_up.png');
+    	game.load.image('block_down','assets/block_down.png');
+    	game.load.image('block_ground','assets/block_ground.png');
     }
 
     function create(){
@@ -87,37 +103,32 @@
     	//game.stage.backgroundColor = '#2d2d2d';
     	//Create BG
     	tileBG = game.add.tileSprite(0, 0, screenWidth, screenHeight, 'background');
-    	//Create buttons
-    	btnUp = game.add.sprite(screenWidth-105, screenHeight-305, 'btnup');
-    	btnLine = game.add.sprite(screenWidth-105, screenHeight-205, 'btnline');
-    	btnDown = game.add.sprite(screenWidth-105, screenHeight-105, 'btndown');
-    	btnPause = game.add.sprite(10, 10, 'btnpause');
 
-    	btnUp.inputEnabled = true;
-    	btnLine.inputEnabled = true;
-    	btnDown.inputEnabled = true;
-    	btnPause.inputEnabled = true;
+    	//ground
+    	ground1 = game.add.sprite(0, screenHeight-217, 'ground');
+    	ground2 = game.add.sprite(screenWidth, screenHeight-217, 'ground');
+    	game.physics.enable([ground1,ground2], Phaser.Physics.ARCADE);   		
+   		ground1.body.velocity.x = -speed;  
+        ground2.body.velocity.x = -speed; 
+    	/*
+    	groundObjGroup = game.add.group();
+   		groundObjGroup.enableBody = true;
+    	groundObjGroup.physicsBodyType = Phaser.Physics.ARCADE;
+    	linegroup = game.add.group();
+	    for (var i = 0; i < 8; i++)
+   		{
+   			var sprite = game.add.sprite(i*100, 250, 'line');
+   			game.physics.enable(sprite, Phaser.Physics.ARCADE);
+   			sprite.typeline=1;
+   			sprite.body.velocity.x = -speed;  
+        	linegroup.add(sprite);   	
+   		} */
 
-    	btnUp.events.onInputDown.add(btnUpListener, this);
-    	btnLine.events.onInputDown.add(btnLineListener, this);
-    	btnDown.events.onInputDown.add(btnDownListener, this);
-    	btnPause.events.onInputDown.add(btnPauseListener, this);
-
-    	//  This sprite is using a texture atlas for all of its animation data
-	    bot = game.add.sprite(200, 270, 'bots');	    
-	    bot.animations.add('run');
-	    bot.animations.play('run',15, true);
-	    game.physics.enable(bot, Phaser.Physics.ARCADE);
-        bot.body.velocity.x = 0;
-        bot.body.immovable = true;
        // bot.anchor.setTo(0.5, 0.5);
-
-        //create enemy
-        enemy = game.add.sprite(99, 30, 'enemy');	    
-	    game.physics.enable(enemy, Phaser.Physics.ARCADE);	    
-        enemy.body.velocity.x = -speed/2;
-        enemy.body.immovable = true;
+       
        // enemy.anchor.setTo(0.5, 0.5);
+       blockgroup = game.add.group();
+
 	    // Create lines
 	    linegroup = game.add.group();
 	    for (var i = 0; i < 8; i++)
@@ -142,6 +153,37 @@
    		} 
 
    		rangeEnemyBot=rangeMax;
+
+   		//  create players
+	    bot = game.add.sprite(200, 270, 'bots');	    
+	    bot.animations.add('run');
+	    bot.animations.play('run',15, true);
+	    game.physics.enable(bot, Phaser.Physics.ARCADE);
+        bot.body.velocity.x = 0;
+        bot.body.immovable = true;
+
+         //create enemy
+        enemy = game.add.sprite(99, 30, 'enemy');	    
+	    game.physics.enable(enemy, Phaser.Physics.ARCADE);	    
+        enemy.body.velocity.x = -speed/2;
+        enemy.body.immovable = true;
+
+        //Create buttons
+    	btnUp = game.add.sprite(screenWidth-105, screenHeight-305, 'btnup');
+    	btnLine = game.add.sprite(screenWidth-105, screenHeight-205, 'btnline');
+    	btnDown = game.add.sprite(screenWidth-105, screenHeight-105, 'btndown');
+    	btnPause = game.add.sprite(10, 10, 'btnpause');
+
+    	btnUp.inputEnabled = true;
+    	btnLine.inputEnabled = true;
+    	btnDown.inputEnabled = true;
+    	btnPause.inputEnabled = true;
+
+    	btnUp.events.onInputDown.add(btnUpListener, this);
+    	btnLine.events.onInputDown.add(btnLineListener, this);
+    	btnDown.events.onInputDown.add(btnDownListener, this);
+    	btnPause.events.onInputDown.add(btnPauseListener, this);
+
     }
 
    
@@ -152,6 +194,17 @@
 
 
     function update(){  	
+    	//loop ground
+    	if(ground1.x+screenWidth<=0){
+    		ground1.x=ground2.x+screenWidth;
+    	}
+    	if(ground2.x+screenWidth<=0){
+    		ground2.x=ground1.x+screenWidth;
+    	}
+
+
+
+    	//----------------------
     	gameOverCheck();
 
     	tileBG.tilePosition.x = tileBG.tilePosition.x - 1;
@@ -215,7 +268,7 @@
 			comboBigCount = 0;
 		}
 		//console.log(enemy.x+" Range:"+rangeEnemyBot+" velocity:"+enemy.body.velocity);
-		console.log(Math.abs(distanceBetween(enemy,bot)-rangeEnemyBot));
+		//console.log(Math.abs(distanceBetween(enemy,bot)-rangeEnemyBot));
     }
 
     function getRandomArbitary(min, max)
@@ -224,14 +277,19 @@
 	
 	}
 
-	function btnUpListener(){		
+	function btnUpListener(){	
+		var x,y;	
 		if(linelevel != 2){
 			prevlinetype=linetype;
 			linetype = 0;
 			if(prevlinetype==0){
+				x=linegroup.getTop().x+100;
+				y=linegroup.getTop().y-100;
 				var sprite = game.add.sprite(linegroup.getTop().x+100, linegroup.getTop().y-100, 'lineup');				 
 				sprite.typeline=0;
 			}else{
+				x=linegroup.getTop().x+100;
+				y=linegroup.getTop().y;
 				var sprite = game.add.sprite(linegroup.getTop().x+100, linegroup.getTop().y, 'lineup');
 				sprite.typeline=0;										
 			}
@@ -239,17 +297,40 @@
    			sprite.body.velocity.x = -speed; 
    			linegroup.add(sprite);	
 			linelevel++;
-		}
+
+			//TODO BLOCK
+			if(linelevel!=2){
+				var sprite = game.add.sprite(x, y-100, 'block_up');
+	   			game.physics.enable(sprite, Phaser.Physics.ARCADE);
+	   			sprite.typeline=1;
+	   			sprite.body.velocity.x = -speed;  
+	        	blockgroup.add(sprite);  
+	        }else{
+	        	var sprite = game.add.sprite(x, y-6, 'block_ground');
+	   			game.physics.enable(sprite, Phaser.Physics.ARCADE);
+	   			sprite.typeline=1;
+	   			sprite.body.velocity.x = -speed;  
+	        	blockgroup.add(sprite);
+	        }
+		}		
 	}
 
 	function btnLineListener(){		
 			prevlinetype=linetype;
 			linetype = 1;
 			if(prevlinetype==0){
-				var sprite = game.add.sprite(linegroup.getTop().x+100, linegroup.getTop().y-100, 'line');
+				if(linelevel==2){
+					var sprite = game.add.sprite(linegroup.getTop().x+100, linegroup.getTop().y-100, 'line_on_ground');
+				}else{
+					var sprite = game.add.sprite(linegroup.getTop().x+100, linegroup.getTop().y-100, 'line');
+				}
 				sprite.typeline=1;
 			}else{
-				var sprite = game.add.sprite(linegroup.getTop().x+100, linegroup.getTop().y, 'line');
+				if(linelevel==2){
+					var sprite = game.add.sprite(linegroup.getTop().x+100, linegroup.getTop().y, 'line_on_ground');
+				}else{
+					var sprite = game.add.sprite(linegroup.getTop().x+100, linegroup.getTop().y, 'line');
+				}
 				sprite.typeline=1;
 			}
 			game.physics.enable(sprite, Phaser.Physics.ARCADE);   				
@@ -258,13 +339,18 @@
 	}
 
 	function btnDownListener(){
+		var x,y;
 		if(linelevel != 0){
 			prevlinetype=linetype;
 			linetype = 2;
 			if(prevlinetype!=0){
+				x=linegroup.getTop().x+100;
+				y=linegroup.getTop().y+100;
 				var sprite = game.add.sprite(linegroup.getTop().x+100, linegroup.getTop().y+100, 'linedown');
 				sprite.typeline=2;
 			}else{
+				x=linegroup.getTop().x+100;
+				y=linegroup.getTop().y;
 				var sprite = game.add.sprite(linegroup.getTop().x+100, linegroup.getTop().y, 'linedown');
 				sprite.typeline=2;
 			}
@@ -272,8 +358,24 @@
    			sprite.body.velocity.x = -speed; 
    			linegroup.add(sprite);
 			linelevel--;
-		}
+
+			//TODO BLOCK
+			if(linelevel!=1){
+				var sprite = game.add.sprite(x, y-100, 'block_down');
+				game.physics.enable(sprite, Phaser.Physics.ARCADE);
+				sprite.typeline=1;
+				sprite.body.velocity.x = -speed;  
+		    	blockgroup.add(sprite); 
+	    	}else{
+	        	var sprite = game.add.sprite(x+6, y-6, 'block_ground');
+	   			game.physics.enable(sprite, Phaser.Physics.ARCADE);
+	   			sprite.typeline=1;
+	   			sprite.body.velocity.x = -speed;  
+	        	blockgroup.add(sprite);
+			}
+		}		
 	}
+
 
 	function btnPauseListener(){
 		if(!game.paused){
@@ -307,7 +409,7 @@
 	function botOverlapPower(_bot,_power){
 		powergroup.remove(_power,true);
 		//_power.kill();
-		console.log("OVERLAAAp!");
+		//console.log("OVERLAAAp!");
 		if(comboCount<comboValue && distanceBetween(enemy,bot)==rangePart){
 			comboCount = comboCount+1;
 		}
@@ -317,7 +419,7 @@
 	}
 
 	function enemyOverlapPower(_enemy,_power){
-		console.log("enemy overlap power");
+		//console.log("enemy overlap power");
 		if(rangeEnemyBot > 0){
 			rangeEnemyBot=rangeEnemyBot-rangePart;
 		}
@@ -337,7 +439,15 @@
 
 	function gameOverCheck(){
 		var gg=false;
-		if(bot.x+40>linegroup.getTop().x+100){gg=true};//upal nahuy!
+		if(bot.x+60>linegroup.getTop().x+100){
+			if(linelevel==2){
+				btnLineListener();
+			}
+		};
+		if(bot.x+40>linegroup.getTop().x+100){			
+				gg=true;			
+		};//upal nahuy!
+
 		if(enemy.overlap(bot)){gg=true};//dognal nahuy!
 		if(gg==true){
 			//alert("game over !");
